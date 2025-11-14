@@ -9,102 +9,94 @@ users = {
     "editor": {"email": "editor@editor.com", "password": "supereditor"}
 }
 
-# Логин.
+
+# Вспомогательные функции.
+
+def make_request(method, endpoint, token=None, json_data=None):
+    """Отправляет HTTP-запрос и возвращает статус и JSON-данные."""
+    headers = {"Authorization": token} if token else {}
+    url = f"{BASE_URL}/{endpoint}/"
+    resp = requests.request(method, url, headers=headers, json=json_data)
+    data = resp.json() if resp.content else {}
+    return resp.status_code, data
+
+
+def print_result(role, method, endpoint, status_code, data):
+    """Вывод результата запроса в консоль."""
+    if status_code in (401, 403):
+        print(f"{role}: {method} /{endpoint}/ -> {status_code} {data.get('error', '')}")
+    else:
+        print(f"{role}: {method} /{endpoint}/ -> {status_code}, {data}")
+
+
 def login(email, password):
-    resp = requests.post(f"{BASE_URL}/users/login/", json={"email": email, "password": password})
-    if resp.status_code == 200:
-        token = resp.json().get("token")
+    """Логин пользователя, возвращает токен."""
+    status_code, data = make_request("POST", "users/login", json_data={"email": email, "password": password})
+    if status_code == 200:
+        token = data.get("token")
         print(f"Login successful: {email}")
         return token
     else:
-        print(f"Login failed: {email}, status: {resp.status_code}")
+        print(f"Login failed: {email}, status: {status_code}")
         return None
 
-# Тест постов.
-def test_posts(token, role):
-    headers = {"Authorization": token} if token else {}
 
-    r = requests.get(f"{BASE_URL}/posts/", headers=headers)
-    if r.status_code == 403:
-        print(f"{role}: GET /posts/ -> 403 Forbidden")
-    else:
-        print(f"{role}: GET /posts/ -> {r.status_code}, {r.json()}")
+# Тесты ресурсов.
 
-    r = requests.post(f"{BASE_URL}/posts/", headers=headers, json={"title": "Новый пост"})
-    if r.status_code == 403:
-        print(f"{role}: POST /posts/ -> 403 Forbidden")
-    else:
-        print(f"{role}: POST /posts/ -> {r.status_code}, {r.json()}")
+def test_resource(token, role, resource, post_data=None):
+    """Тест GET и POST для ресурса (posts, comments)."""
+    # GET
+    status_code, data = make_request("GET", resource, token)
+    print_result(role, "GET", resource, status_code, data)
 
-# Тест комментариев.
-def test_comments(token, role):
-    headers = {"Authorization": token} if token else {}
+    # POST
+    if post_data:
+        status_code, data = make_request("POST", resource, token, json_data=post_data)
+        print_result(role, "POST", resource, status_code, data)
 
-    r = requests.get(f"{BASE_URL}/comments/", headers=headers)
-    if r.status_code == 403:
-        print(f"{role}: GET /comments/ -> 403 Forbidden")
-    else:
-        print(f"{role}: GET /comments/ -> {r.status_code}, {r.json()}")
 
-    r = requests.post(f"{BASE_URL}/comments/", headers=headers, json={"post_id": 1, "text": "Новый комментарий"})
-    if r.status_code == 403:
-        print(f"{role}: POST /comments/ -> 403 Forbidden")
-    else:
-        print(f"{role}: POST /comments/ -> {r.status_code}, {r.json()}")
-
-# Тест admin_tools.
 def test_admin_tools(token, role):
-    headers = {"Authorization": token} if token else {}
+    """Тестирование эндпоинта админских инструментов."""
+    status_code, data = make_request("GET", "admin_tools/overview", token)
+    print_result(role, "GET", "admin_tools/overview", status_code, data)
 
-    r = requests.get(f"{BASE_URL}/admin_tools/overview/", headers=headers)
-    if r.status_code == 403:
-        print(f"{role}: GET /admin_tools/overview/ -> 403 Forbidden")
-    else:
-        print(f"{role}: GET /admin_tools/overview/ -> {r.status_code}, {r.json()}")
-
-# Проверка без токена (401).
-def test_unauthorized():
-    print("\n Проверка без токена (должен быть 401) ")
-    for endpoint in ["posts", "comments", "admin_tools/overview"]:
-        r = requests.get(f"{BASE_URL}/{endpoint}/")
-        print(f"{endpoint}: GET -> {r.status_code}, {r.json()}")
 
 def test_profile(token, role):
-    headers = {"Authorization": token} if token else {}
+    """Тестирование профиля пользователя: GET, PUT, DELETE."""
+    # GET
+    status_code, data = make_request("GET", "users/profile", token)
+    print_result(role, "GET", "profile", status_code, data)
 
-    # GET /users/profile/
-    r = requests.get(f"{BASE_URL}/users/profile/", headers=headers)
-    if r.status_code == 401:
-        print(f"{role}: GET /profile/ -> 401 Unauthorized")
-    else:
-        print(f"{role}: GET /profile/ -> {r.status_code}, {r.json()}")
-
-    # PUT /users/profile/ - обновление имени
+    # PUT
     update_data = {"first_name": f"{role}_new"}
-    r = requests.put(f"{BASE_URL}/users/profile/", headers=headers, json=update_data)
-    if r.status_code == 401:
-        print(f"{role}: PUT /profile/ -> 401 Unauthorized")
-    else:
-        print(f"{role}: PUT /profile/ -> {r.status_code}, {r.json()}")
+    status_code, data = make_request("PUT", "users/profile", token, json_data=update_data)
+    print_result(role, "PUT", "profile", status_code, data)
 
-    # DELETE /users/profile/ - мягкое удаление
-    r = requests.delete(f"{BASE_URL}/users/profile/", headers=headers)
-    if r.status_code == 401:
-        print(f"{role}: DELETE /profile/ -> 401 Unauthorized")
-    else:
-        print(f"{role}: DELETE /profile/ -> {r.status_code}, {r.json()}")
+    # DELETE
+    status_code, data = make_request("DELETE", "users/profile", token)
+    print_result(role, "DELETE", "profile", status_code, data)
 
-# Основной тест.
+
+def test_unauthorized():
+    """Проверка доступа без токена (должны быть 401)."""
+    print("\nПроверка без токена (должен быть 401)")
+    for endpoint in ["posts", "comments", "admin_tools/overview", "users/profile"]:
+        status_code, data = make_request("GET", endpoint)
+        print(f"{endpoint}: GET -> {status_code}, {data}")
+
+
+# --- Основной тестовый сценарий --- #
+
 if __name__ == "__main__":
-    # Проверка 401.
+    # Проверка 401 без токена
     test_unauthorized()
 
-    # Тестируем каждого пользователя.
+    # Тестируем каждого пользователя
     for role, creds in users.items():
         print(f"\nТестирование для пользователя: {role}")
         token = login(creds["email"], creds["password"])
         if token:
-            test_posts(token, role)
-            test_comments(token, role)
+            test_resource(token, role, "posts", {"title": "Новый пост"})
+            test_resource(token, role, "comments", {"post_id": 1, "text": "Новый комментарий"})
             test_admin_tools(token, role)
             test_profile(token, role)

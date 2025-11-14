@@ -65,7 +65,7 @@ class CommentsView(APIView):
 			return Response({"error": "Доступ запрещён"},
 							status=status.HTTP_403_FORBIDDEN)
 
-		return Response({"posts": COMMENTS})
+		return Response({"comments": COMMENTS})
 
 	def post(self, request):
 		token = request.headers.get('Authorization')

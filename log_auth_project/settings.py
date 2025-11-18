@@ -22,7 +22,7 @@ INSTALLED_APPS = [
 	"django.contrib.messages",
 	"django.contrib.staticfiles",
 
-	# твои приложения
+	# Мои приложения.
 	"apps.users",
 	"apps.mock_objects",
 	"apps.admin_tools",

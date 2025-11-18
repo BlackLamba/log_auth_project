@@ -85,7 +85,7 @@ def test_unauthorized():
         print(f"{endpoint}: GET -> {status_code}, {data}")
 
 
-# --- Основной тестовый сценарий --- #
+# Основной тестовый сценарий
 
 if __name__ == "__main__":
     # Проверка 401 без токена

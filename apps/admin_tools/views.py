@@ -17,7 +17,7 @@ def require_admin(func):
         user_id = verify_token(token)
         if not user_id or not is_admin(user_id):
             return Response({"error": "Доступ запрещен"}, status=status.HTTP_403_FORBIDDEN)
-        request.user_id = user_id  # можно сохранить для дальнейшего использования
+        request.user_id = user_id
         return func(self, request, *args, **kwargs)
     return wrapper
 
@@ -26,7 +26,7 @@ def is_admin(user_id):
     roles = UserRole.objects.filter(user_id=user_id).select_related("role")
     return any(r.role.name == ADMIN_ROLE_NAME for r in roles)
 
-# Управление ролями пользователя
+# Управление ролями пользователя.
 class UserRoleView(APIView):
 
     @require_admin
